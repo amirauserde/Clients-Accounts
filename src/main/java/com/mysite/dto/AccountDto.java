@@ -1,9 +1,9 @@
 package com.mysite.dto;
 
-import com.mysite.Model.bankAccounts.AccountType;
 import lombok.*;
 
 import java.time.LocalDate;
+
 @Getter
 @Setter
 @ToString
@@ -13,12 +13,17 @@ public class AccountDto {
     private int accountID;
     private int accountNo;
     @NonNull
-    private AccountType type;
     private LocalDate accountOpenDate;
-    private double balance;
+    private AmountDto balance;
     private boolean accountClosed;
 
     public AccountDto() {
         accountOpenDate = LocalDate.now();
+        balance = new AmountDto();
+    }
+
+    public AccountDto(LocalDate date, AmountDto balance) {
+        accountOpenDate = date;
+        this.balance = balance;
     }
 }

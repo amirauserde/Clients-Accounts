@@ -3,7 +3,6 @@ package com.mysite.dto;
 import com.mysite.Model.ClientPriority;
 import com.mysite.Model.ClientStatus;
 import com.mysite.Model.ClientType;
-import com.mysite.Model.bankAccounts.Account;
 import com.mysite.Model.contact.Contact;
 
 import java.util.ArrayList;
@@ -16,7 +15,8 @@ public abstract class ClientDto {
     private ClientPriority priority;
     private final ClientType clientType;
     Contact contact;
-    private List<Account> accounts;
+    private List<Integer> accountNos;
+    private String password;
 
 
     public ClientDto (Integer id, String name, ClientType type, ClientPriority priority) {
@@ -26,7 +26,7 @@ public abstract class ClientDto {
         clientType = type;
         clientID = id;
         contact = new Contact(name);
-        accounts = new ArrayList<>(2);
+        accountNos = new ArrayList<>(2);
     }
 
     public ClientDto(ClientType clientType) {
@@ -62,5 +62,11 @@ public abstract class ClientDto {
         return name;
     }
 
+    public void setPassword(String password) {
+        this.password = password;
+    }
 
+    public List<Integer> getAccountNos() {
+        return accountNos;
+    }
 }

@@ -13,8 +13,8 @@ public class RealClient extends Client implements Serializable {
         super(ClientType.REAL);
     }
 
-    public RealClient(String firstName, String lastName, ClientPriority priority) {
-        super(lastName + ", " + firstName, ClientType.REAL, priority);
+    public RealClient(String firstName, String lastName, ClientPriority priority, String password) {
+        super(lastName + ", " + firstName, ClientType.REAL, priority, password);
         person = new Person(firstName, lastName);
     }
 

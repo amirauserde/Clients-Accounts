@@ -6,11 +6,13 @@ public class MainConsole extends BaseConsole implements AutoCloseable {
 
     private final ClientConsole clientMenu;
     private final AccountConsole accountMenu;
+    private final PersonalConsole personalMenu;
 
     public MainConsole() {
         super();
         clientMenu = new ClientConsole();
         accountMenu = new AccountConsole();
+        personalMenu = new PersonalConsole();
     }
 
     private void saveOnExit() {
@@ -34,12 +36,14 @@ public class MainConsole extends BaseConsole implements AutoCloseable {
             String choice = scannerWrapper.getUserInput("""
                     1. Client Menu
                     2. Accounts Menu
-                    3. exit""", Function.identity());
+                    3. Personal Menu
+                    4. exit""", Function.identity());
 
             switch (choice) {
                 case "1" -> clientMenu.clientMenu();
                 case "2" -> accountMenu.accountMenu();
-                case "3" -> menuRun = false;
+                case "3" -> personalMenu.entryMenu();
+                case "4" -> menuRun = false;
                 default -> System.out.println("Wrong input!");
             }
         }

@@ -2,16 +2,23 @@ package com.mysite.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.mysite.Model.bankAccounts.Account;
+import com.mysite.Model.bankAccounts.Amount;
 import com.mysite.service.exception.AccountNotFoundException;
 import com.mysite.service.exception.FileException;
 import com.mysite.service.exception.ValidationException;
+import com.mysite.util.AmountUtil;
+import com.mysite.util.ExchangeRate;
+import com.mysite.util.ExchangeRateImpl;
 import com.mysite.util.MapperWrapper;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class AccountManagement {
@@ -19,7 +26,10 @@ public class AccountManagement {
     private ArrayList<Account> accounts;
     private static AccountManagement INSTANCE;
 
+    private ExchangeRate exchangeRate;
     private final String fileName = "accountData";
+    private Map<Integer, Lock> locks;
+    private AmountUtil amountUtil;
 
     public static AccountManagement getInstance() {
         if(INSTANCE == null) {
@@ -32,11 +42,19 @@ public class AccountManagement {
         return INSTANCE;
     }
 
+    private Lock getLock(int accountNumber) {
+        locks.putIfAbsent(accountNumber, new ReentrantLock());
+        return locks.get(accountNumber);
+    }
+
     private final ObjectMapper objectMapper;
 
     private AccountManagement() {
         this.accounts = new ArrayList<>();
         objectMapper = MapperWrapper.getInstance();
+        exchangeRate = ExchangeRateImpl.getInstance();
+        locks = new HashMap<>();
+        amountUtil = AmountUtil.getInstance();
     }
 
     public int addAccount(Account account) {
@@ -82,7 +100,7 @@ public class AccountManagement {
     public List<Account> findAccount(String searchItem) {
         List<Account> results;
         results = accounts.stream().filter(account -> String.valueOf(account.getAccountNo()).equals(searchItem) ||
-                        String.valueOf(account.getType()).equalsIgnoreCase(searchItem))
+                        String.valueOf(account.getBalance().getCurrency()).equalsIgnoreCase(searchItem))
                 .collect(Collectors.toList());
         return results;
     }
@@ -176,25 +194,52 @@ public class AccountManagement {
         }
     }
 
-    public void deposit(int accountNumber, Double amount) throws AccountNotFoundException{
-        Account account = getAccountByAccNo(accountNumber);
-        account.setBalance(account.getBalance() + amount);
+    public void deposit(int accountNumber, Amount amount) throws AccountNotFoundException{
+        Lock lock = getLock(accountNumber);
+        lock.lock();
+        try {
+            Account account = getAccountByAccNo(accountNumber);
+            account.setBalance(amountUtil.add(account.getBalance(), amount));
+        } finally {
+            lock.unlock();
+        }
     }
 
-    public void withdraw(int accountNumber, double amount) throws AccountNotFoundException, ValidationException {
-        Account account = getAccountByAccNo(accountNumber);
-        if(amount > account.getBalance()) throw new ValidationException("Account amount can not be less than zero");
-        account.setBalance(account.getBalance() - amount);
+    public void withdraw(int accountNumber, Amount amount) throws AccountNotFoundException, ValidationException {
+        Lock lock = getLock(accountNumber);
+        lock.lock();
+        try {
+            Account account = getAccountByAccNo(accountNumber);
+            if(amountUtil.compareTo(amount, account.getBalance()) > 0)
+                throw new ValidationException("Account amount can not be less than zero");
+            account.setBalance(amountUtil.subtract(account.getBalance(), amount));
+        } finally {
+            lock.unlock();
+        }
     }
 
     public String accountType(int accountNumber) throws AccountNotFoundException {
-        return getAccountByAccNo(accountNumber).getType().toString();
+        return getAccountByAccNo(accountNumber).getBalance().getCurrency().toString();
     }
 
 
-    public void transfer(int fromAccountNumber, int toAccountNumber, double amount) throws AccountNotFoundException {
-        if (getAccountByAccNo(fromAccountNumber).getType() != getAccountByAccNo(toAccountNumber).getType()) {
+    public void transfer(int fromAccountNumber, int toAccountNumber, Amount amount)
+            throws AccountNotFoundException, ValidationException {
+        Lock fromLock = getLock(fromAccountNumber);
+        Lock toLock = getLock(toAccountNumber);
 
+        Lock firstLock = (fromAccountNumber < toAccountNumber)? fromLock : toLock;
+        Lock secondLock = (fromAccountNumber < toAccountNumber)? toLock : fromLock;
+
+        firstLock.lock();
+        secondLock.lock();
+
+        try {
+            withdraw(fromAccountNumber, amount);
+            deposit(toAccountNumber, amount);
+        } finally {
+            firstLock.unlock();
+            secondLock.unlock();
         }
     }
 }

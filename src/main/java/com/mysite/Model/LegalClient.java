@@ -14,8 +14,8 @@ public class LegalClient extends Client implements Serializable {
         super(ClientType.LEGAL);
     }
 
-    public LegalClient(String name, String nationalCode, ClientPriority priority) {
-        super(name, ClientType.LEGAL, priority);
+    public LegalClient(String name, String nationalCode, ClientPriority priority, String password) {
+        super(name, ClientType.LEGAL, priority, password);
         this.companyName = name;
         this.nationalCode = nationalCode;
     }

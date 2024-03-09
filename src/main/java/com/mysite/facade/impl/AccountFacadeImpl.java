@@ -1,17 +1,22 @@
 package com.mysite.facade.impl;
 
+import com.mysite.Model.Client;
 import com.mysite.Model.bankAccounts.Account;
-import com.mysite.Model.bankAccounts.AccountType;
 import com.mysite.dto.AccountDto;
+import com.mysite.dto.AmountDto;
 import com.mysite.mapper.AccountMapstruct;
 import com.mysite.service.AccountManagement;
 import com.mysite.service.ClientManagement;
 import com.mysite.service.Validation.AccountValidationContext;
 import com.mysite.service.exception.AccountNotFoundException;
+import com.mysite.service.exception.ClientNotFoundException;
 import com.mysite.service.exception.FileException;
 import com.mysite.service.exception.ValidationException;
 import org.mapstruct.factory.Mappers;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Currency;
 import java.util.List;
 
 public class AccountFacadeImpl {
@@ -40,23 +45,40 @@ public class AccountFacadeImpl {
         validationContext = new AccountValidationContext();
     }
 
+    AccountFacadeImpl(ClientManagement clientManagement, AccountManagement accountManagement) {
+        accountMapstruct = Mappers.getMapper(AccountMapstruct.class);
+        this.accountManagement = accountManagement;
+        this.clientManagement = clientManagement;
+        validationContext = new AccountValidationContext();
+    }
+
+
     public AccountDto getAccountDtoById(int id) throws AccountNotFoundException {
         return accountMapstruct.mapToAccountDto(accountManagement.getAccountById(id));
     }
 
-    public void addAccount(int accountType, int clientId) throws ValidationException {
-        accountType = (accountType == 1)? 1 : 2;
-        if(clientManagement.checkAccounts(clientId, accountType)) {
-            AccountDto newAccountDto = new AccountDto(AccountType.fromValue(accountType));
+    public void addAccount(Currency currency, int clientId)
+            throws ValidationException, AccountNotFoundException, ClientNotFoundException {
+
+        if(checkAccounts(clientId, currency)) {
+            AccountDto newAccountDto = new AccountDto(LocalDate.now(), new AmountDto(currency, BigDecimal.ZERO));
             validationContext.validate(newAccountDto);
             Account account = accountMapstruct.mapToAccount(newAccountDto);
-            clientManagement.addAccount(clientId, account);
+
             accountManagement.addAccount(account);
+            clientManagement.addAccount(clientId, account.getAccountNo());
         } else {
             throw new ValidationException("Client already has this type of account");
         }
     }
 
+    public boolean checkAccounts(int clientId, Currency currency)
+            throws AccountNotFoundException, ClientNotFoundException {
+        Client client = clientManagement.getClientById(clientId);
+        if(client.getAccountNos().isEmpty()) return true;
+        Account account = accountManagement.getAccountByAccNo((client.getAccountNos().get(0)));
+        return(!account.getBalance().getCurrency().equals(currency));
+    }
     public boolean closeAccount(int accountNo) throws AccountNotFoundException {
         return accountManagement.closeAccount(accountNo);
     }
@@ -98,16 +120,27 @@ public class AccountFacadeImpl {
         accountManagement.addData(name);
     }
 
-    public void deposit(int accountNumber, Double amount) throws ValidationException, AccountNotFoundException {
-        if(amount < 0) throw new ValidationException("amount must be more than zero!");
-        accountManagement.deposit(accountNumber, amount);
+    public void deposit(int accountNumber, BigDecimal amount, Currency currency)
+            throws ValidationException, AccountNotFoundException {
+        AmountDto amountDto =
+                new AmountDto(currency, amount);
+        if(amountDto.getValue().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ValidationException("amount must be more than zero!");
+        }
+        accountManagement.deposit(accountNumber, accountMapstruct.mapToAmount(amountDto));
     }
 
-    public void withdraw(int accountNumber, double amount) throws ValidationException, AccountNotFoundException {
-        accountManagement.withdraw(accountNumber, amount);
+    public void withdraw(int accountNumber, BigDecimal amount, Currency currency)
+            throws ValidationException, AccountNotFoundException {
+        AmountDto amountDto = new AmountDto(currency, amount);
+        accountManagement.withdraw(accountNumber, accountMapstruct.mapToAmount(amountDto));
     }
 
-    public void transfer(int fromAccountNumber, int toAccountNumber, double amount) throws AccountNotFoundException {
-        accountManagement.transfer(fromAccountNumber, toAccountNumber, amount);
+    public void transfer(int fromAccountNumber, int toAccountNumber, BigDecimal amount)
+            throws AccountNotFoundException, ValidationException {
+        AmountDto amountDto =
+                new AmountDto(accountManagement.
+                        getAccountByAccNo(fromAccountNumber).getBalance().getCurrency(), amount);
+        accountManagement.transfer(fromAccountNumber, toAccountNumber, accountMapstruct.mapToAmount(amountDto));
     }
 }

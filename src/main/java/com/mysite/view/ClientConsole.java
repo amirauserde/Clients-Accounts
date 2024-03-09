@@ -1,7 +1,9 @@
 package com.mysite.view;
-import com.mysite.facade.impl.AccountFacadeImpl;
+
 import com.mysite.facade.impl.ClientFacadeImpl;
-import com.mysite.util.ScannerWrapper;
+import com.mysite.service.exception.AccountNotFoundException;
+import com.mysite.service.exception.ClientNotFoundException;
+import com.mysite.service.exception.ValidationException;
 
 import java.util.List;
 import java.util.function.Function;
@@ -99,12 +101,16 @@ public class ClientConsole extends BaseConsole implements AutoCloseable {
             if(!searchedIds.contains(chosenID)) {
                 System.out.println("Wrong ID!");
             } else {
-                clientDetailsMenu(chosenID);
+                try {
+                    clientDetailsMenu(chosenID);
+                } catch (AccountNotFoundException | ClientNotFoundException e) {
+                    System.out.println(e.getMessage());
+                }
             }
         }
     }
 
-    private void clientDetailsMenu(int clientId) {
+    private void clientDetailsMenu(int clientId) throws AccountNotFoundException, ClientNotFoundException {
         System.out.println(clientFacade.printClientDetails(clientId));
         System.out.println();
         boolean menuRun = true;
@@ -127,7 +133,7 @@ public class ClientConsole extends BaseConsole implements AutoCloseable {
         }
     }
 
-    private void addClientAccount(int clientId) {
+    void addClientAccount(int clientId) {
         accountConsole.addAccount(clientId);
     }
 
@@ -138,15 +144,16 @@ public class ClientConsole extends BaseConsole implements AutoCloseable {
 
         int newClientId = -1;
 
-        String firstName = scannerWrapper.getUserInput("Enter first name: ", Function.identity());
+        String firstName = scannerWrapper.getUserInput("Enter name: ", Function.identity());
         String secondElement =
                 scannerWrapper.getUserInput((clientChoice == 1)?
                         "Enter last name: " : "Enter company's national code: ", Function.identity());
         String priority = scannerWrapper.getUserInput
                 ("Enter client's priority (CRITICAL, HIGH, MEDIUM, LOW)", Function.identity());
+        String password = scannerWrapper.getUserInput("Enter password: ", Function.identity());
 
         try {
-            newClientId = clientFacade.addClient(clientChoice, firstName, secondElement, priority);
+            newClientId = clientFacade.addClient(clientChoice, firstName, secondElement, priority, password);
         } catch (Throwable ex) {
             System.out.println(ex.getMessage());
             addClient();
@@ -162,7 +169,7 @@ public class ClientConsole extends BaseConsole implements AutoCloseable {
         }
     }
 
-    private void addContact(int clientId) {
+    void addContact(int clientId) {
         boolean addContactMenu = true;
         while (addContactMenu) {
             int choice = scannerWrapper.getUserInput("""
@@ -175,8 +182,15 @@ public class ClientConsole extends BaseConsole implements AutoCloseable {
             switch (choice) {
                 case 1 -> addPhoneNumber(clientId);
                 case 2 -> addAddress(clientId);
-                case 3 -> clientFacade.setEmail(clientId, scannerWrapper.
-                        getUserInput("Enter email address: ", Function.identity()));
+                case 3 -> {
+                    try {
+                        clientFacade.setEmail(clientId, scannerWrapper.
+                                getUserInput("Enter email address: ", Function.identity()));
+                    } catch (ValidationException e) {
+                        System.out.println(e.getMessage());
+                        addContact(clientId);
+                    }
+                }
                 case 4 -> addClientAccount(clientId);
                 default -> addContactMenu = false;
             }
@@ -226,7 +240,7 @@ public class ClientConsole extends BaseConsole implements AutoCloseable {
         }
     }
 
-    private void priorityChange(int clientId) {
+    private void priorityChange(int clientId) throws ClientNotFoundException {
         String priority = scannerWrapper.
                 getUserInput("Please Enter the new priority (CRITICAL, HIGH, MEDIUM, LOW): "
                         , Function.identity());
@@ -237,7 +251,12 @@ public class ClientConsole extends BaseConsole implements AutoCloseable {
     private void statusChange(int clientId) {
         String status = scannerWrapper.
                 getUserInput("Please Enter the new status (CURRENT, PAST): ", Function.identity());
-        boolean result = clientFacade.statusChange(clientId, status);
+        boolean result = false;
+        try {
+            result = clientFacade.statusChange(clientId, status);
+        } catch (ClientNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
         System.out.println(result? "Status changed!" : "Wrong input!");
     }
 

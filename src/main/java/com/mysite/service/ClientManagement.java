@@ -3,17 +3,19 @@ package com.mysite.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mysite.Model.*;
-import com.mysite.Model.bankAccounts.Account;
-import com.mysite.Model.bankAccounts.AccountType;
 import com.mysite.Model.contact.Address;
 import com.mysite.Model.contact.Contact;
 import com.mysite.Model.contact.PhoneNumber;
+import com.mysite.service.exception.ClientNotFoundException;
 import com.mysite.service.exception.FileException;
+import com.mysite.service.exception.ValidationException;
 import com.mysite.util.MapperWrapper;
+import com.mysite.util.PasswordEncoderUtil;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static java.util.function.Predicate.not;
@@ -48,7 +50,7 @@ public class ClientManagement<T extends Client> {
         return client.getClientID();
     }
 
-    public int addClient(int type, String name, String secondElement, String priority) {
+    public int addClient(int type, String name, String secondElement, String priority, String password) {
         if(findClient(name).size() > 0) {
             if(findClient(secondElement + ", " + name).size() > 0 ||
                     findClient(secondElement).size() > 0) {
@@ -59,40 +61,29 @@ public class ClientManagement<T extends Client> {
 
         if(type == 1) {
             newClient = new RealClient(name, secondElement,
-                    ClientPriority.lookup(priority.toUpperCase()));
+                    ClientPriority.lookup(priority.toUpperCase()), password);
         } else {
             newClient = new LegalClient(name, secondElement,
-                    ClientPriority.lookup(priority.toUpperCase()));
+                    ClientPriority.lookup(priority.toUpperCase()), password);
         }
+        newClient.setPassword(PasswordEncoderUtil.encoder(password, newClient.getClientID()));
 
         return addClient((T) newClient);
     }
 
 
-    public boolean priorityChange(int clientId, String priority) {
+    public boolean priorityChange(int clientId, String priority) throws ClientNotFoundException {
         if(ClientPriority.contains(priority)) {
-            Client client = clients.stream()
-                    .filter(c -> c.getClientID() == clientId)
-                    .findFirst()
-                    .orElse(null);
-            if (client == null) {
-                return false;
-            }
+            Client client = getClientById(clientId);
             client.setPriority(ClientPriority.lookup(priority.toUpperCase()));
             return true;
         }
         return false;
     }
 
-    public boolean statusChange(int clientId, String status) {
+    public boolean statusChange(int clientId, String status) throws ClientNotFoundException {
         if(ClientStatus.contains(status)) {
-            Client client = clients.stream()
-                    .filter(c -> c.getClientID() == clientId)
-                    .findFirst()
-                    .orElse(null);
-            if (client == null) {
-                return false;
-            }
+            Client client = getClientById(clientId);
             client.setStatus(ClientStatus.lookup(status.toUpperCase()));
             return true;
         }
@@ -120,15 +111,11 @@ public class ClientManagement<T extends Client> {
         return true;
     }
 
-    public void addAccount(int clientId, Account account) {
-        Client client = clients.stream().filter(c -> c.getClientID() == clientId).findFirst().orElse(null);
-        client.getAccounts().add(account);
+    public void addAccount(int clientId, int accountNo) throws ClientNotFoundException {
+        Client client = getClientById(clientId);
+        client.getAccountNos().add(accountNo);
     }
 
-    public boolean checkAccounts(int clientId, int type) {
-        Client client = clients.stream().filter(c -> c.getClientID() == clientId).findFirst().orElse(null);
-        return (client.getAccounts().stream().noneMatch(ac -> ac.getType().equals(AccountType.fromValue(type))));
-    }
 
     public boolean addAddress(int clientId, String[] info) {
         Contact contact = clients.stream()
@@ -147,7 +134,7 @@ public class ClientManagement<T extends Client> {
         return true;
     }
 
-    public void setEmail(int clientId, String emailAddress) {
+    public void setEmail(int clientId, String emailAddress) throws ValidationException {
         Contact contact = clients.stream()
                 .filter(c -> c.getClientID() == clientId)
                 .map(Client::getContact)
@@ -155,6 +142,9 @@ public class ClientManagement<T extends Client> {
                 .orElse(null);
         if (contact == null) {
             return;
+        }
+        if(!emailAddress.matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
+            throw new ValidationException("Please enter Email in correct format.");
         }
         contact.setEmailAddress(emailAddress);
     }
@@ -196,15 +186,30 @@ public class ClientManagement<T extends Client> {
                 client.getName(), client.getPriority(), client.getStatus());
     }
 
-    public String printClientDetails(int clientId) {
+    public String printClientDetails(int clientId) throws ClientNotFoundException {
+        Client client = getClientById(clientId);
+        return client.toString();
+    }
+
+    public Client getClientById(int clientId) throws ClientNotFoundException {
         Client client = clients.stream()
                 .filter(c -> c.getClientID() == clientId)
                 .findFirst()
                 .orElse(null);
-        if (client == null) {
-            return "No client found";
+        if(client == null) {
+            throw new ClientNotFoundException();
         }
-        return client.toString();
+        return client;
+    }
+
+    public boolean login(int clientID, String password) {
+        try {
+            Client client = getClientById(clientID);
+            return Objects.equals(client.getPassword(),
+                    PasswordEncoderUtil.encoder(password, clientID));
+        } catch (RuntimeException | ClientNotFoundException e) {
+            return false;
+        }
     }
 
     public void saveData(int type, String name) throws FileException {

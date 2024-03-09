@@ -3,7 +3,6 @@ package com.mysite.Model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.mysite.Model.bankAccounts.Account;
 import com.mysite.Model.contact.Contact;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,23 +27,25 @@ public abstract class Client implements Serializable {
     private ClientPriority priority;
     private final ClientType type;
     Contact contact;
-    private List<Account> accounts;
+    private List<Integer> accountNos;
+    private String password;
 
 
     public Client(ClientType type){
         this.clientID = count.getAndIncrement();
         this.type = type;
-        accounts = new ArrayList<>(2);
+        accountNos = new ArrayList<>(2);
     }
 
-    public Client(String name, ClientType type, ClientPriority priority) {
+    public Client(String name, ClientType type, ClientPriority priority, String password) {
         this.name = name;
         status = ClientStatus.NEW;
         this.priority = priority;
         this.type = type;
         clientID = count.getAndIncrement();
         contact = new Contact(name);
-        accounts = new ArrayList<>(2);
+        accountNos = new ArrayList<>(2);
+        this.password = password;
     }
 
 }

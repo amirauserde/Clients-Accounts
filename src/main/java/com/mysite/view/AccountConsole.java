@@ -2,8 +2,11 @@ package com.mysite.view;
 import com.mysite.dto.AccountDto;
 import com.mysite.facade.impl.AccountFacadeImpl;
 import com.mysite.service.exception.AccountNotFoundException;
+import com.mysite.service.exception.ClientNotFoundException;
 import com.mysite.service.exception.ValidationException;
 
+import java.math.BigDecimal;
+import java.util.Currency;
 import java.util.List;
 import java.util.function.Function;
 
@@ -55,63 +58,59 @@ public class AccountConsole extends BaseConsole {
         }
     }
 
-    private void transfer() {
-
+    void transfer() {
         int fromAccountNumber = (scannerWrapper.getUserInput
                 ("Enter the withdrawal account: ", Integer::parseInt));
         int toAccountNumber = (scannerWrapper.getUserInput
                 ("Enter the account to deposit to: ", Integer::parseInt));
         String fromAccType = null;
+
         try {
             fromAccType = accountFacade.accountType(fromAccountNumber);
-        } catch (AccountNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-        double amount = (scannerWrapper.getUserInput
-                ("Enter the amount in %s: ".formatted(fromAccType), Double::parseDouble));
-        try {
-            accountFacade.transfer(fromAccountNumber, toAccountNumber, amount);
-        } catch (AccountNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+            double amount = (scannerWrapper.getUserInput
+                    ("Enter the amount in %s: ".formatted(fromAccType), Double::parseDouble));
+            accountFacade.transfer(fromAccountNumber, toAccountNumber, BigDecimal.valueOf(amount));
 
-
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+            transfer();
+        }
     }
 
-    private void deposit() {
+    void deposit() {
         double amount = 0.0;
-        String type = " ";
+        Currency currency = Currency.getInstance("EUR");
         try {
             int accountNumber = (scannerWrapper.getUserInput
                     ("Enter the account number: ", Integer::parseInt));
-            type = accountFacade.accountType(accountNumber);
+            currency = getCurrency();
             amount = (scannerWrapper.getUserInput
-                    ("Enter the amount in %s: ".formatted(type),
+                    ("Enter the amount in %s: ".formatted(currency),
                             Double::parseDouble));
-            accountFacade.deposit(accountNumber, amount);
+            accountFacade.deposit(accountNumber, BigDecimal.valueOf(amount), currency);
         } catch (ValidationException | AccountNotFoundException e) {
             System.out.println(e.getMessage());
             deposit();
         }
-        System.out.println(amount + type + " was deposited into account.");
+        System.out.printf("%f %s was deposited into account.%n", amount, currency);
     }
 
-    private void withdraw() {
+    void withdraw() {
         double amount = 0.0;
-        String type = " ";
+        Currency currency = Currency.getInstance("EUR");
         try {
             int accountNumber = (scannerWrapper.getUserInput
                     ("Enter the account number: ", Integer::parseInt));
-            type = accountFacade.accountType(accountNumber);
+            currency = getCurrency();
             amount = (scannerWrapper.getUserInput
-                    ("Enter the amount in %s: ".formatted(type),
+                    ("Enter the amount in %s: ".formatted(currency),
                             Double::parseDouble));
-            accountFacade.withdraw(accountNumber, amount);
+            accountFacade.withdraw(accountNumber, BigDecimal.valueOf(amount), currency);
         } catch (ValidationException | AccountNotFoundException e) {
             System.out.println(e.getMessage());
             withdraw();
         }
-        System.out.println("Please receive " + amount + type + " from the account.");
+        System.out.printf("Please receive %f %s from the account.", amount, currency);
     }
 
     private void printAccounts() {
@@ -165,11 +164,9 @@ public class AccountConsole extends BaseConsole {
 
     void addAccount(int clientID) {
 
-        int accountTypeChoice = (scannerWrapper.getUserInput
-                ("Account type:%n1. Euro%n2. Dollar".formatted(), Integer::parseInt));
         try {
-            accountFacade.addAccount(accountTypeChoice, clientID);
-        } catch (ValidationException e) {
+            accountFacade.addAccount(getCurrency(), clientID);
+        } catch (ValidationException | AccountNotFoundException | ClientNotFoundException e) {
             System.out.println(e.getMessage());
             addAccount(clientID);
         }
@@ -187,6 +184,18 @@ public class AccountConsole extends BaseConsole {
             closeAccount();
         }
         System.out.println(result? "Account is already closed!" : "Account was closed!");
+    }
+
+    private Currency getCurrency() {
+        int accountTypeChoice = (scannerWrapper.getUserInput
+                ("Currency:%n1. Eur%n2. USD".formatted(), Integer::parseInt));
+        Currency currency;
+        if(accountTypeChoice == 1) {
+            currency = Currency.getInstance("EUR");
+        } else {
+            currency = Currency.getInstance("USD");
+        }
+        return currency;
     }
 
 }

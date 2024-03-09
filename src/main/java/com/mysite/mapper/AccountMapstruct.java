@@ -1,7 +1,9 @@
 package com.mysite.mapper;
 
 import com.mysite.Model.bankAccounts.Account;
+import com.mysite.Model.bankAccounts.Amount;
 import com.mysite.dto.AccountDto;
+import com.mysite.dto.AmountDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -17,6 +19,8 @@ public interface AccountMapstruct {
 
     @Mapping(ignore = true, target = "accountID")
     Account mapToAccount(AccountDto accountDto, @MappingTarget Account account);
+
+    Amount mapToAmount(AmountDto amountDto);
 
     @Mapping(ignore = true, target = "accountID")
     Account mapToAccount(AccountDto accountDto);
