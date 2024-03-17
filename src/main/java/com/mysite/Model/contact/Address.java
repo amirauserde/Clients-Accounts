@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import javax.persistence.*;
 import java.io.Serializable;
 
 enum AddressType {
@@ -13,14 +14,27 @@ enum AddressType {
         return LookupUtil.lookup(AddressType.class, id);
     }
 }
+@Entity
+@Table(name = "address")
 @Getter
 @Setter
 @ToString
 public class Address implements Serializable {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+    @Enumerated(EnumType.STRING)
     private AddressType addressType;
     private String country;
     private String city;
     private String address;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contact_id")
+    private Contact contact;
+
+    public void setContact(Contact contact) {
+        this.contact = contact;
+    }
 
     public Address() {
     }

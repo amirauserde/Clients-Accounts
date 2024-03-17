@@ -4,6 +4,7 @@ import com.mysite.view.MainConsole;
 
 public class ApplicationRunner {
     public static void main(String[] args) {
+
         try (MainConsole newConsole = new MainConsole()) {
             newConsole.run();
         } catch (Throwable ex) {

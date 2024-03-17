@@ -1,12 +1,21 @@
 package com.mysite.Model;
 
+import com.mysite.util.PersonConverter;
 import lombok.Getter;
 import lombok.Setter;
 
+import javax.persistence.Column;
+import javax.persistence.Convert;
+import javax.persistence.Entity;
+import javax.persistence.Table;
 import java.io.Serializable;
+@Entity
+@Table(name = "real_client")
 @Getter
 @Setter
 public class RealClient extends Client implements Serializable {
+    @Column
+    @Convert(converter = PersonConverter.class)
     Person person;
 
     public RealClient() {

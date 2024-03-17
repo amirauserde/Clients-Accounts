@@ -1,17 +1,31 @@
 package com.mysite.Model.contact;
 
+import com.mysite.Model.Client;
 import lombok.Getter;
 import lombok.Setter;
 
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "contact")
 @Getter
 @Setter
 public class Contact implements Serializable {
+    @Id
+    private Long contact_id;
     private String contactName;
-    private final ArrayList<PhoneNumber> numbers;
+    @OneToMany(mappedBy = "contact", fetch=FetchType.EAGER)
+    private final List<PhoneNumber> numbers;
     private String emailAddress;
-    private final ArrayList<Address> addresses;
+    @OneToMany(mappedBy = "contact", fetch=FetchType.LAZY)
+    private final List<Address> addresses;
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "CLIENTID")
+    private Client client;
 
     public Contact() {
         this.numbers = new ArrayList<>();

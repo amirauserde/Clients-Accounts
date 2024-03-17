@@ -3,7 +3,11 @@ package com.mysite.Model;
 import lombok.Getter;
 import lombok.Setter;
 
+import javax.persistence.Entity;
+import javax.persistence.Table;
 import java.io.Serializable;
+@Entity
+@Table(name = "legal_client")
 @Getter
 @Setter
 public class LegalClient extends Client implements Serializable {

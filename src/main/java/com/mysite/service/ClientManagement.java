@@ -11,6 +11,10 @@ import com.mysite.service.exception.FileException;
 import com.mysite.service.exception.ValidationException;
 import com.mysite.util.MapperWrapper;
 import com.mysite.util.PasswordEncoderUtil;
+import dao.ClientDao;
+import dao.ContactDao;
+import dao.Impl.ClientDaoImpl;
+import dao.Impl.ContactDaoImpl;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -24,7 +28,8 @@ public class ClientManagement<T extends Client> {
 
     private ArrayList<T> clients;
     private static ClientManagement INSTANCE;
-
+    private ClientDao clientDao;
+    private ContactDao contactDao;
     private final String fileName = "clientData";
 
     public static ClientManagement getInstance() {
@@ -43,6 +48,8 @@ public class ClientManagement<T extends Client> {
     private ClientManagement() {
         this.clients = new ArrayList<>();
         objectMapper = MapperWrapper.getInstance();
+        clientDao = ClientDaoImpl.getInstance();
+        contactDao = ContactDaoImpl.getInstance();
     }
 
     public int addClient(T client) {
@@ -68,6 +75,7 @@ public class ClientManagement<T extends Client> {
         }
         newClient.setPassword(PasswordEncoderUtil.encoder(password, newClient.getClientID()));
 
+        clientDao.save(newClient);
         return addClient((T) newClient);
     }
 
@@ -76,6 +84,7 @@ public class ClientManagement<T extends Client> {
         if(ClientPriority.contains(priority)) {
             Client client = getClientById(clientId);
             client.setPriority(ClientPriority.lookup(priority.toUpperCase()));
+            updateClient(client);
             return true;
         }
         return false;
@@ -85,6 +94,7 @@ public class ClientManagement<T extends Client> {
         if(ClientStatus.contains(status)) {
             Client client = getClientById(clientId);
             client.setStatus(ClientStatus.lookup(status.toUpperCase()));
+            updateClient(client);
             return true;
         }
         return false;
@@ -149,6 +159,10 @@ public class ClientManagement<T extends Client> {
         contact.setEmailAddress(emailAddress);
     }
 
+    public void updateClient(Client client) {
+        clientDao.update(client);
+    }
+
 
     public List<Integer> findClient(String searchItem) {
         List<Integer> results;
@@ -192,10 +206,7 @@ public class ClientManagement<T extends Client> {
     }
 
     public Client getClientById(int clientId) throws ClientNotFoundException {
-        Client client = clients.stream()
-                .filter(c -> c.getClientID() == clientId)
-                .findFirst()
-                .orElse(null);
+        Client client = clientDao.getById(clientId);
         if(client == null) {
             throw new ClientNotFoundException();
         }
